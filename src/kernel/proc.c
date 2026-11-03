@@ -5,6 +5,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "file.h"
+#include "ipc.h"
 
 struct cpu cpus[NCPU];
 
@@ -170,6 +172,11 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->cwdh = 0;
+  p->cwdgen = 0;
+  p->boot = 0;
+  p->svcid = 0;
+  p->xfer_client = 0;
   p->state = UNUSED;
 }
 
@@ -232,16 +239,52 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 void
 userinit(void)
 {
-  struct proc *p;
+  struct proc *fsp, *p;
 
+  // pid 1: the file system server, started from the boot module.
+  fsp = allocproc();
+  fsp->boot = 1;
+  release(&fsp->lock);
+
+  // pid 2: init, which becomes initproc (the reaper of orphans).  It
+  // waits for the file system service before it execs /init from disk.
   p = allocproc();
   initproc = p;
-  
-  p->cwd = namei("/");
-
-  p->state = RUNNABLE;
+  p->boot = 2;
 
   release(&p->lock);
+
+  acquire(&wait_lock);
+  fsp->parent = p;
+  release(&wait_lock);
+
+  acquire(&fsp->lock);
+  fsp->state = RUNNABLE;
+  release(&fsp->lock);
+  acquire(&p->lock);
+  p->state = RUNNABLE;
+  release(&p->lock);
+}
+
+// Start a fresh file system server (init calls this after the previous
+// one died).  Returns the new pid, or -1.
+int
+spawn_fsserver(void)
+{
+  struct proc *np = allocproc();
+
+  if(np == 0)
+    return -1;
+  np->boot = 1;
+  int pid = np->pid;
+  release(&np->lock);
+  acquire(&wait_lock);
+  np->parent = initproc;
+  release(&wait_lock);
+  acquire(&np->lock);
+  np->state = RUNNABLE;
+  release(&np->lock);
+  return pid;
 }
 
 // Shrink user memory by n bytes.
@@ -296,13 +339,16 @@ kfork(void)
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
-  np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
 
   release(&np->lock);
+
+  // Talks to the file system server, which can sleep: np->lock must not
+  // be held.  np is not runnable yet, so nobody else touches np->cwdh.
+  fs_dup_cwd(np, p);
 
   acquire(&wait_lock);
   np->parent = p;
@@ -341,6 +387,9 @@ kexit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  // If this was a service, fail its pending requests first.
+  ipc_proc_exit(p);
+
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
@@ -350,10 +399,8 @@ kexit(int status)
     }
   }
 
-  begin_op();
-  iput(p->cwd);
-  end_op();
-  p->cwd = 0;
+  fs_release(p->cwdh, p->cwdgen);
+  p->cwdh = 0;
 
   acquire(&wait_lock);
 
@@ -520,27 +567,41 @@ forkret(void)
 #else
   extern void usertrapret(void);
 #endif
-  static int first = 1;
   struct proc *p = myproc();
 
   // Still holding p->lock from scheduler.
   release(&p->lock);
 
-  if (first) {
-    // File system initialization must be run in the context of a
-    // regular process (e.g., because it calls sleep), and thus cannot
-    // be run from main().
-    fsinit(ROOTDEV);
-
-    first = 0;
-    // ensure other cores see first=0.
-    __sync_synchronize();
-
-    // We can invoke kexec() now that file system is initialized.
-    // Put the return value (argc) of kexec into a0.
+  if (p->boot == 1) {
+    // The file system server: started from the boot module linked into
+    // the kernel, with the console as fds 0-2 (it cannot open files
+    // through itself).
+    extern char fssrv_start[], fssrv_end[];
+    for(int fd = 0; fd < 3; fd++){
+      struct file *f = filealloc();
+      if(f == 0)
+        panic("fssrv console");
+      f->type = FD_DEVICE;
+      f->major = CONSOLE;
+      f->readable = f->writable = 1;
+      f->h = 0;
+      p->ofile[fd] = f;
+    }
+    p->boot = 0;
+    p->svcid = SVC_FS;
+    p->trapframe->a0 = kexec_image("fssrv", fssrv_start, fssrv_end - fssrv_start,
+                                   (char *[]){ "fssrv", 0 });
+    if (p->trapframe->a0 == -1) {
+      panic("exec fssrv");
+    }
+  } else if (p->boot == 2) {
+    // Everything else is loaded through the file system service.
+    while(!svc_alive(SVC_FS))
+      yield();
+    p->boot = 0;
     p->trapframe->a0 = kexec("/init", (char *[]){ "/init", 0 });
     if (p->trapframe->a0 == -1) {
-      panic("exec");
+      panic("exec init");
     }
   }
 

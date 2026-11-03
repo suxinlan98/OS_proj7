@@ -6,10 +6,10 @@ set -u
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR" || exit 1
 
-SUITES="test_baseline public_vfs ext2 fat32 error semantics persist smp \
+SUITES="test_baseline public_vfs ext2 fat32 error fault semantics persist smp \
 mount_lifecycle remount_io mount_storm \
 loongarch_baseline loongarch_public_vfs loongarch_ext2 loongarch_fat32 \
-loongarch_error loongarch_semantics loongarch_persist loongarch_smp \
+loongarch_error loongarch_fault loongarch_semantics loongarch_persist loongarch_smp \
 loongarch_mount_lifecycle loongarch_remount_io loongarch_mount_storm"
 
 total=0

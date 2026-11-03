@@ -6,8 +6,43 @@
 #include "proc.h"
 #include "defs.h"
 #include "elf.h"
+#include "ipc.h"
+#include "fcntl.h"
+#include "stat.h"
 
-static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
+// Where an executable is read from: a file held by the file system
+// server, or an in-memory boot module (used to start the server itself).
+struct execsrc {
+  int h, gen;                 // server handle
+  char *image;                // boot module, if non-zero
+  uint64 imagesz;
+};
+
+static int loadseg(pde_t *, uint64, struct execsrc *, uint, uint);
+
+static int
+srcread(struct execsrc *src, void *dst, uint off, uint n)
+{
+  struct ipcmsg m;
+  long r;
+
+  if(src->image){
+    if(off >= src->imagesz)
+      return 0;
+    if(n > src->imagesz - off)
+      n = src->imagesz - off;
+    memmove(dst, src->image + off, n);
+    return n;
+  }
+  memset(&m, 0, sizeof(m));
+  m.op = FS_PREAD;
+  m.h = src->h;
+  m.gen = src->gen;
+  m.a0 = off;
+  m.a1 = n;
+  r = fs_call(&m, (uint64)dst, n, 1);
+  return r;
+}
 
 // map ELF permissions to PTE permission bits.
 int flags2perm(int flags)
@@ -23,28 +58,27 @@ int flags2perm(int flags)
 //
 // the implementation of the exec() system call
 //
+static int kexec_src(char *path, char **argv, struct execsrc *src);
+
 int
 kexec(char *path, char **argv)
 {
-  char *s, *last;
-  int i, off;
-  uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
-  struct elfhdr elf;
-  struct inode *ip;
-  struct proghdr ph;
-  pagetable_t pagetable = 0, oldpagetable;
-  struct proc *p = myproc();
+  struct execsrc src;
+  struct ipcmsg m;
+  char rootpath[MAXPATH];
+  long h;
+  int i, slash, ret;
 
-  begin_op();
-
-  // Open the executable file.
-  ip = namei(path);
-  if(ip == 0 && path[0] != '/'){
+  memset(&src, 0, sizeof(src));
+  src.gen = svc_gen(SVC_FS);
+  memset(&m, 0, sizeof(m));
+  m.op = FS_OPEN;
+  safestrcpy(m.s1, path, sizeof(m.s1));
+  m.a0 = O_RDONLY;
+  h = fs_call(&m, 0, 0, 0);
+  if(h <= 0 && path[0] != '/'){
     // Bare command names (no '/') fall back to the root directory,
     // so programs installed in "/" work from any working directory.
-    int i, slash;
-    char rootpath[MAXPATH];
-
     slash = 0;
     for(i = 0; path[i]; i++)
       if(path[i] == '/')
@@ -52,17 +86,46 @@ kexec(char *path, char **argv)
     if(!slash && strlen(path) + 2 <= sizeof(rootpath)){
       rootpath[0] = '/';
       safestrcpy(rootpath + 1, path, sizeof(rootpath) - 1);
-      ip = namei(rootpath);
+      memset(&m, 0, sizeof(m));
+      m.op = FS_OPEN;
+      safestrcpy(m.s1, rootpath, sizeof(m.s1));
+      m.a0 = O_RDONLY;
+      h = fs_call(&m, 0, 0, 0);
     }
   }
-  if(ip == 0){
-    end_op();
+  if(h <= 0)
     return -1;
-  }
-  ilock(ip);
+  src.h = h;
+  ret = kexec_src(path, argv, &src);
+  fs_release(src.h, src.gen);
+  return ret;
+}
+
+// exec from a boot module that is linked into the kernel image.
+int
+kexec_image(char *name, char *image, uint64 size, char **argv)
+{
+  struct execsrc src;
+
+  memset(&src, 0, sizeof(src));
+  src.image = image;
+  src.imagesz = size;
+  return kexec_src(name, argv, &src);
+}
+
+static int
+kexec_src(char *path, char **argv, struct execsrc *src)
+{
+  char *s, *last;
+  int i, off;
+  uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
+  struct elfhdr elf;
+  struct proghdr ph;
+  pagetable_t pagetable = 0, oldpagetable;
+  struct proc *p = myproc();
 
   // Read the ELF header.
-  if(vfs_readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+  if(srcread(src, &elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
 
   // Is this really an ELF file?
@@ -74,7 +137,7 @@ kexec(char *path, char **argv)
 
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-    if(vfs_readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+    if(srcread(src, &ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
     if(ph.type != ELF_PROG_LOAD)
       continue;
@@ -88,13 +151,9 @@ kexec(char *path, char **argv)
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
       goto bad;
     sz = sz1;
-    if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
+    if(loadseg(pagetable, ph.vaddr, src, ph.off, ph.filesz) < 0)
       goto bad;
   }
-  iunlockput(ip);
-  end_op();
-  ip = 0;
-
   p = myproc();
   uint64 oldsz = p->sz;
 
@@ -161,10 +220,6 @@ kexec(char *path, char **argv)
  bad:
   if(pagetable)
     proc_freepagetable(pagetable, sz);
-  if(ip){
-    iunlockput(ip);
-    end_op();
-  }
   return -1;
 }
 
@@ -173,7 +228,7 @@ kexec(char *path, char **argv)
 // and the pages from va to va+sz must already be mapped.
 // Returns 0 on success, -1 on failure.
 static int
-loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz)
+loadseg(pagetable_t pagetable, uint64 va, struct execsrc *src, uint offset, uint sz)
 {
   uint i, n;
   uint64 pa;
@@ -189,7 +244,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
 #ifdef ARCH_LOONGARCH
     pa |= DMWIN_MASK;
 #endif
-    if(vfs_readi(ip, 0, (uint64)pa, offset+i, n) != n)
+    if(srcread(src, (void *)pa, offset+i, n) != n)
       return -1;
   }
   

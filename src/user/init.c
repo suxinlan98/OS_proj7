@@ -14,7 +14,7 @@ char *argv[] = { "sh", 0 };
 int
 main(void)
 {
-  int pid, wpid;
+  int pid, wpid, restarts = 0;
 
   if(open("console", O_RDWR) < 0){
     mknod("console", CONSOLE, 0);
@@ -46,6 +46,14 @@ main(void)
       } else if(wpid < 0){
         printf("init: wait returned an error\n");
         exit(1);
+      } else if(svc_pid(1) == 0){
+        // the file system server died (crash, kill): start a fresh one.
+        // It replays the on-disk log, so committed work survives.
+        // Files that were open stay unusable; the shell and the console
+        // keep working because they do not depend on the server.
+        printf("init: file system server died, restarting\n");
+        if(restarts++ < 50 && svc_restart(1) < 0)
+          printf("init: cannot restart file system server\n");
       } else {
         // it was a parentless process; do nothing.
       }

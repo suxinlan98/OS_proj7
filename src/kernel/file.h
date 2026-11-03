@@ -1,39 +1,23 @@
-#include "vfs.h"
+#include "types.h"
 
+// An open file as seen by the kernel.  Everything that lives on a file
+// system is owned by the user-space file system server; FD_REMOTE and
+// FD_DEVICE files only remember the server's handle for it (and the
+// server incarnation that issued it).
 struct file {
-  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
+  enum { FD_NONE, FD_PIPE, FD_REMOTE, FD_DEVICE } type;
   int ref; // reference count
   char readable;
   char writable;
   struct pipe *pipe; // FD_PIPE
-  struct inode *ip;  // FD_INODE and FD_DEVICE
-  uint off;          // FD_INODE
+  int h;             // FD_REMOTE, FD_DEVICE: server handle (0 = none)
+  int gen;           // server incarnation that issued h
   short major;       // FD_DEVICE
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)
 #define minor(dev)  ((dev) & 0xFFFF)
 #define	mkdev(m,n)  ((uint)((m)<<16| (n)))
-
-// in-memory copy of an inode
-struct inode {
-  uint dev;           // Device number
-  uint inum;          // Inode number
-  int ref;            // Reference count
-  struct sleeplock lock; // protects everything below here
-  int valid;          // inode has been read from disk?
-
-  enum fs_type fstype;      // file system type
-  struct mount *mnt;        // mount instance
-  struct inode_ops *ops;    // inode operation table
-
-  short type;         // copy of disk inode
-  short major;
-  short minor;
-  short nlink;
-  uint size;
-  uint addrs[NDIRECT+2];   // +1: xv6 single indirect; +2: ext2 double indirect
-};
 
 // map major device number to device functions.
 struct devsw {

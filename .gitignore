@@ -17,3 +17,9 @@ userland/src/
 userland/stage/
 userland/out/
 userland/musl/
+src/user/usys.S
+src/mkfs/mkfat32
+src/tests/hello
+src/tests/test1
+src/tests/test2
+src/.arch-*

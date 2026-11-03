@@ -1,0 +1,25 @@
+#include "vfs.h"
+
+// in-memory copy of an inode
+struct inode {
+  uint dev;           // Device number
+  uint inum;          // Inode number
+  int ref;            // Reference count
+  struct sleeplock lock; // protects everything below here
+  int valid;          // inode has been read from disk?
+
+  enum fs_type fstype;      // file system type
+  struct mount *mnt;        // mount instance
+  struct inode_ops *ops;    // inode operation table
+
+  short type;         // copy of disk inode
+  short major;
+  short minor;
+  short nlink;
+  uint size;
+  uint addrs[NDIRECT+2];   // +1: xv6 single indirect; +2: ext2 double indirect
+};
+
+#define major(dev)  ((dev) >> 16 & 0xFFFF)
+#define minor(dev)  ((dev) & 0xFFFF)
+#define	mkdev(m,n)  ((uint)((m)<<16| (n)))

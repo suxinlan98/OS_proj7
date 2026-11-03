@@ -22,3 +22,10 @@
 #define SYS_close  21
 #define SYS_mount  22
 #define SYS_umount 23
+#define SYS_svc_register 24
+#define SYS_svc_recv     25
+#define SYS_svc_reply    26
+#define SYS_svc_xfer     27
+#define SYS_blk_rw       28
+#define SYS_svc_pid      29
+#define SYS_svc_restart  30

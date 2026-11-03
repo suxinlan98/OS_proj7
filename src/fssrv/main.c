@@ -1,0 +1,488 @@
+// The file system server.
+//
+// Everything that used to be the kernel's file system (buffer cache, log,
+// xv6/ext2/fat32 back ends, VFS, path lookup, open-file offsets) runs here
+// as an ordinary user process.  It serves one request at a time, received
+// over the kernel's synchronous IPC, and reaches the disk only through the
+// kernel's block driver (blk_rw).  If it dies, the kernel fails the
+// requests in flight and init starts a new one; the on-disk log recovers
+// whatever transaction was cut short.
+#include "types.h"
+#include "param.h"
+#include "fs.h"
+#include "stat.h"
+#include "fcntl.h"
+#include "ipc.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "defs.h"
+#include "file.h"
+#include "svcapi.h"
+
+// A handle names one reference to an inode held on behalf of a client:
+// an open file (with its offset) or a current directory.
+#define NFH 256
+
+static struct fh {
+  struct inode *ip;
+  uint off;
+} fh[NFH];
+
+static struct ipcmsg m;
+
+static int
+halloc(struct inode *ip, uint off)
+{
+  int i;
+  for(i = 1; i < NFH; i++){
+    if(fh[i].ip == 0){
+      fh[i].ip = ip;
+      fh[i].off = off;
+      return i;
+    }
+  }
+  return 0;
+}
+
+static struct fh*
+hget(int h)
+{
+  if(h <= 0 || h >= NFH || fh[h].ip == 0)
+    return 0;
+  return &fh[h];
+}
+
+// Is the directory dp empty except for "." and ".." ?
+static int
+isdirempty(struct inode *dp)
+{
+  int off;
+  struct dirent de;
+
+  for(off=2*sizeof(de); off<dp->size; off+=sizeof(de)){
+    if(readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+      panic("isdirempty: readi");
+    if(de.inum != 0)
+      return 0;
+  }
+  return 1;
+}
+
+static long
+do_link(char *old, char *new)
+{
+  char name[DIRSIZ];
+  struct inode *dp, *ip;
+  int r;
+
+  begin_op();
+  if((ip = namei(old)) == 0){
+    end_op();
+    return -1;
+  }
+
+  if((dp = nameiparent(new, name)) == 0){
+    iput(ip);
+    end_op();
+    return -1;
+  }
+  r = vfs_link(ip, dp, name);
+  iput(dp);
+  iput(ip);
+
+  end_op();
+  return r;
+}
+
+static long
+do_unlink(char *path)
+{
+  struct inode *ip, *dp;
+  struct dirent de;
+  char name[DIRSIZ];
+  uint off;
+
+  begin_op();
+  if((dp = nameiparent(path, name)) == 0){
+    end_op();
+    return -1;
+  }
+
+  ilock(dp);
+
+  // Cannot unlink "." or "..".
+  if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
+    goto bad;
+
+  if(dp->fstype != FS_XV6){
+    if(vfs_unlink(dp, name) < 0)
+      goto bad;
+    iunlockput(dp);
+    end_op();
+    return 0;
+  }
+
+  if((ip = dirlookup(dp, name, &off)) == 0)
+    goto bad;
+  ilock(ip);
+
+  if(vfs_mountpoint(ip) != 0){
+    // Cannot unlink a directory that is used as a mount point.
+    iunlockput(ip);
+    goto bad;
+  }
+
+  if(ip->nlink < 1)
+    panic("unlink: nlink < 1");
+  if(ip->type == T_DIR && !isdirempty(ip)){
+    iunlockput(ip);
+    goto bad;
+  }
+
+  memset(&de, 0, sizeof(de));
+  if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+    panic("unlink: writei");
+  if(ip->type == T_DIR){
+    dp->nlink--;
+    iupdate(dp);
+  }
+  iunlockput(dp);
+
+  ip->nlink--;
+  iupdate(ip);
+  iunlockput(ip);
+
+  end_op();
+
+  return 0;
+
+bad:
+  iunlockput(dp);
+  end_op();
+  return -1;
+}
+
+// Returns a locked inode.  Must be called inside a transaction.
+static struct inode*
+create(char *path, short type, short major, short minor)
+{
+  struct inode *ip, *dp;
+  char name[DIRSIZ];
+
+  if((dp = nameiparent(path, name)) == 0)
+    return 0;
+
+  ilock(dp);
+
+  if((ip = vfs_lookup(dp, name)) != 0){
+    iunlockput(dp);
+    ilock(ip);
+    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
+      return ip;
+    iunlockput(ip);
+    return 0;
+  }
+
+  if(dp->fstype != FS_XV6){
+    ip = vfs_create(dp, name, type, major, minor);
+    iunlockput(dp);
+    if(ip)
+      ilock(ip);
+    return ip;
+  }
+
+  if((ip = ialloc(dp->dev, type)) == 0){
+    iunlockput(dp);
+    return 0;
+  }
+
+  ilock(ip);
+  ip->major = major;
+  ip->minor = minor;
+  ip->nlink = 1;
+  iupdate(ip);
+
+  if(type == T_DIR){  // Create . and .. entries.
+    // No ip->nlink++ for ".": avoid cyclic ref count.
+    if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
+      goto fail;
+  }
+
+  if(dirlink(dp, name, ip->inum) < 0)
+    goto fail;
+
+  if(type == T_DIR){
+    // now that success is guaranteed:
+    dp->nlink++;  // for ".."
+    iupdate(dp);
+  }
+
+  iunlockput(dp);
+
+  return ip;
+
+ fail:
+  // something went wrong. de-allocate ip.
+  ip->nlink = 0;
+  iupdate(ip);
+  iunlockput(ip);
+  iunlockput(dp);
+  return 0;
+}
+
+static long
+do_open(struct ipcmsg *r)
+{
+  struct inode *ip;
+  int omode = r->a0, h;
+
+  begin_op();
+
+  if(omode & O_CREATE){
+    ip = create(r->s1, T_FILE, 0, 0);
+    if(ip == 0){
+      end_op();
+      return -1;
+    }
+  } else {
+    if((ip = namei(r->s1)) == 0){
+      end_op();
+      return -1;
+    }
+    ilock(ip);
+    if(ip->type == T_DIR && omode != O_RDONLY){
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+  }
+
+  if((h = halloc(ip, 0)) == 0){
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  if((omode & O_TRUNC) && ip->type == T_FILE){
+    vfs_itrunc(ip);
+  }
+
+  r->r1 = ip->type;
+  r->r2 = ip->major;
+  iunlock(ip);
+  end_op();
+  return h;
+}
+
+static long
+do_mkdir(char *path)
+{
+  struct inode *ip;
+
+  begin_op();
+  if((ip = create(path, T_DIR, 0, 0)) == 0){
+    end_op();
+    return -1;
+  }
+  iunlockput(ip);
+  end_op();
+  return 0;
+}
+
+static long
+do_mknod(char *path, int major, int minor)
+{
+  struct inode *ip;
+
+  begin_op();
+  if((ip = create(path, T_DEVICE, major, minor)) == 0){
+    end_op();
+    return -1;
+  }
+  iunlockput(ip);
+  end_op();
+  return 0;
+}
+
+static long
+do_chdir(char *path)
+{
+  struct inode *ip;
+  int h;
+
+  begin_op();
+  if((ip = namei(path)) == 0){
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+  if(ip->type != T_DIR){
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+  iunlock(ip);
+  if((h = halloc(ip, 0)) == 0){
+    iput(ip);
+    end_op();
+    return -1;
+  }
+  end_op();
+  return h;
+}
+
+static long
+do_close(int h)
+{
+  struct fh *f = hget(h);
+  struct inode *ip;
+
+  if(f == 0)
+    return -1;
+  ip = f->ip;
+  f->ip = 0;
+  begin_op();
+  iput(ip);
+  end_op();
+  return 0;
+}
+
+static long
+do_read(struct ipcmsg *r, int usepos)
+{
+  struct fh *f = hget(r->h);
+  long n;
+
+  if(f == 0)
+    return -1;
+  ilock(f->ip);
+  if(usepos){
+    n = vfs_readi(f->ip, 1, r->gaddr, (uint)r->a0, (uint)r->a1);
+  } else {
+    if((n = vfs_readi(f->ip, 1, r->gaddr, f->off, (uint)r->a0)) > 0)
+      f->off += n;
+  }
+  iunlock(f->ip);
+  return n;
+}
+
+static long
+do_write(struct ipcmsg *r)
+{
+  struct fh *f = hget(r->h);
+  int n = r->a0, w, i = 0;
+
+  if(f == 0)
+    return -1;
+  // write a few blocks at a time to avoid exceeding
+  // the maximum log transaction size, including
+  // i-node, indirect block, allocation blocks,
+  // and 2 blocks of slop for non-aligned writes.
+  int max = ((MAXOPBLOCKS-1-1-2) / 2) * BSIZE;
+  while(i < n){
+    int n1 = n - i;
+    if(n1 > max)
+      n1 = max;
+
+    begin_op();
+    ilock(f->ip);
+    if ((w = vfs_writei(f->ip, 1, r->gaddr + i, f->off, n1)) > 0)
+      f->off += w;
+    iunlock(f->ip);
+    end_op();
+
+    if(w != n1){
+      // error from writei
+      break;
+    }
+    i += w;
+  }
+  return i == n ? n : -1;
+}
+
+static long
+do_stat(struct ipcmsg *r)
+{
+  struct fh *f = hget(r->h);
+  struct stat st;
+
+  if(f == 0)
+    return -1;
+  ilock(f->ip);
+  vfs_stati(f->ip, &st);
+  iunlock(f->ip);
+  return svc_xfer(SVC_FS, XFER_TO_CLIENT, r->gaddr, &st, sizeof(st));
+}
+
+static long
+do_dup(int h)
+{
+  struct fh *f = hget(h);
+  int nh;
+
+  if(f == 0)
+    return -1;
+  if((nh = halloc(f->ip, f->off)) == 0)
+    return -1;
+  idup(f->ip);
+  return nh;
+}
+
+static long
+dispatch(struct ipcmsg *r)
+{
+  // Resolve relative paths against the calling process's directory.
+  struct fh *c = hget(r->cwd);
+  fs_cwd = c ? c->ip : 0;
+
+  r->s1[MAXPATH-1] = 0;
+  r->s2[MAXPATH-1] = 0;
+  switch(r->op){
+  case FS_OPEN:   return do_open(r);
+  case FS_READ:   return do_read(r, 0);
+  case FS_WRITE:  return do_write(r);
+  case FS_PREAD:  return do_read(r, 1);
+  case FS_STAT:   return do_stat(r);
+  case FS_CLOSE:  return do_close(r->h);
+  case FS_DUP:    return do_dup(r->h);
+  case FS_LINK:   return do_link(r->s1, r->s2);
+  case FS_UNLINK: return do_unlink(r->s1);
+  case FS_MKDIR:  return do_mkdir(r->s1);
+  case FS_MKNOD:  return do_mknod(r->s1, r->a0, r->a1);
+  case FS_CHDIR:  return do_chdir(r->s1);
+  case FS_MOUNT:
+#ifdef FSSRV_FAULT_INJECT
+    // Test hook (tests/fault): a "mount" of the fake type "__crash__"
+    // makes the server dereference a null pointer, as a bug would.
+    if(strncmp(r->s1, "__crash__", 10) == 0)
+      *(volatile int *)0 = 1;
+#endif
+    return vfs_mount(r->s1, r->s2, r->a0);
+  case FS_UMOUNT: return vfs_umount(r->s1);
+  default:        return -1;
+  }
+}
+
+int
+main(void)
+{
+  long ret;
+
+  // Register first: the kernel only lets the registered server touch the
+  // disk.  Clients that call in meanwhile just wait for the first svc_recv.
+  if(svc_register(SVC_FS) < 0)
+    panic("svc_register");
+  binit();
+  iinit();
+  vfsinit();
+  fsinit(ROOTDEV);
+  printf("fssrv: file system service up (pid-served)\n");
+
+  for(;;){
+    if(svc_recv(SVC_FS, &m) < 0)
+      exit(0);
+    m.r1 = m.r2 = 0;
+    ret = dispatch(&m);
+    svc_reply(SVC_FS, ret, m.r1, m.r2);
+  }
+}

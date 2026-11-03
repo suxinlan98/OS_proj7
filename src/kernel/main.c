@@ -24,10 +24,8 @@ main()
     trapinithart();  // install kernel trap vector
     hal_intr_init(); // set up interrupt controller
     hal_intr_inithart();
-    binit();         // buffer cache
-    iinit();         // inode table
     fileinit();      // file table
-    vfsinit();       // virtual file system
+    ipcinit();       // service IPC
     hal_disk_init(); // emulated hard disk
     userinit();      // first user process
     __sync_synchronize();

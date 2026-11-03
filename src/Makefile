@@ -12,18 +12,13 @@ COMMON_OBJS = \
   $K/main.o \
   $K/syscall.o \
   $K/sysproc.o \
-  $K/bio.o \
-  $K/block.o \
-  $K/fs.o \
-  $K/ext2.o \
-  $K/fat32.o \
-  $K/vfs.o \
-  $K/log.o \
   $K/sleeplock.o \
   $K/file.o \
   $K/pipe.o \
   $K/exec.o \
-  $K/sysfile.o
+  $K/sysfile.o \
+  $K/ipc.o \
+  $K/bootmod.o
 
 ifeq ($(ARCH),riscv)
 ARCH_OBJS = \
@@ -168,6 +163,22 @@ tags: $(OBJS)
 
 ULIB = $U/ulib.o $U/usys.o $U/printf.o $U/umalloc.o
 
+# The file system server: the old kernel file system code, run in user mode.
+F=fssrv
+FSSRV_OBJS = $F/main.o $F/glue.o $F/bio.o $F/block.o $F/fs.o $F/log.o \
+  $F/vfs.o $F/ext2.o $F/fat32.o
+
+$F/%.o: $F/%.c $(ARCH_STAMP)
+	$(CC) $(CFLAGS) -DFSSRV_FAULT_INJECT -I$F -I$K -c -o $@ $<
+
+$U/_fssrv: $(FSSRV_OBJS) $(ULIB) $(USER_LD)
+	$(LD) $(LDFLAGS) -T $(USER_LD) -o $@ $(FSSRV_OBJS) $(ULIB)
+	$(OBJDUMP) -S $@ > $F/fssrv.asm
+
+# the kernel embeds the server as a boot module
+$K/bootmod.o: $K/bootmod.S $U/_fssrv
+	$(CC) $(ARCH_ASFLAGS) -I. -g -c -o $@ $<
+
 $(ULIB): $(ARCH_STAMP)
 
 _%: %.o $(ULIB) $(USER_LD)
@@ -228,6 +239,7 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
+	$U/_fsfault\
 
 EXT2IMG = ext2.img
 EXT2_BLOCKS = 4096
@@ -263,7 +275,7 @@ fs.img: mkfs/mkfs README hello.c tests/cmds.sh tests/hello.c tests/test1 tests/t
 	cat $(EXT2IMG) >> fs.img
 	cat $(FAT32IMG) >> fs.img
 
--include kernel/*.d kernel/arch/loongarch/*.d user/*.d
+-include kernel/*.d kernel/arch/loongarch/*.d user/*.d fssrv/*.d
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \

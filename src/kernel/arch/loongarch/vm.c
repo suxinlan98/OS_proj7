@@ -210,6 +210,9 @@ vmfault(pagetable_t pagetable, uint64 va, int read)
 
   (void)read;
 
+  // A service filling a client's buffer faults pages in for the client.
+  if(p->xfer_client && pagetable == p->xfer_client->pagetable)
+    p = p->xfer_client;
   if(va >= MAXVA || va >= p->sz)
     return 0;
   va = PGROUNDDOWN(va);

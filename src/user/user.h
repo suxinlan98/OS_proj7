@@ -26,6 +26,13 @@ int umount(const char*);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
+int svc_register(int);
+int svc_recv(int, void*);
+int svc_reply(int, long, long, long);
+int svc_xfer(int, int, uint64, void*, int);
+int blk_rw(int, int, void*, int);
+int svc_pid(int);
+int svc_restart(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

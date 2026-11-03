@@ -26,6 +26,9 @@
 // only one device
 struct superblock sb; 
 
+// Current directory of the client being served.
+struct inode *fs_cwd;
+
 // Read the super block.
 static void
 readsb(int dev, struct superblock *sb)
@@ -737,10 +740,10 @@ namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next, *root;
 
-  if(*path == '/')
+  if(*path == '/' || fs_cwd == 0)
     ip = iget(ROOTDEV, ROOTINO);
   else
-    ip = idup(myproc()->cwd);
+    ip = idup(fs_cwd);
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
