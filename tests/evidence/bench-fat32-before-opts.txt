@@ -1,0 +1,14 @@
+qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+init: starting sh
+$ mkdir /fat
+$ mount fat32 /fat
+mount: fat32 on /fat dev 3
+$ vfsbench /fat/fb.bin 5 128
+vfsbench: write 5 x 131072 bytes = 273 ticks
+vfsbench: read 5 x 131072 bytes = 86 ticks
+$ echo BENCH_DONE
+BENCH_DONE
+$ 

@@ -1,0 +1,38 @@
+make[1]: Entering directory '/mnt/d/our_Os/project3136859-388873/src'
+qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ mount ext2 /no_such_dir
+mount: failed
+$ mount ext2 /.
+mount: failed
+$ mount fat32 /..
+mount: failed
+$ mkdir /mnt
+$ mkdir /mnt2
+$ mkdir /fat
+$ mount ext2 /mnt &
+$ mount: ext2 on /mnt dev 2
+mount ext2 /mnt
+mount: failed
+$ mount ext2 /mnt2
+mount: failed
+$ mount fat32 /mnt
+mount: failed
+$ mount fat32 /fat &
+$ mount: fat32 on /fat dev 3
+mount fat32 /fat
+mount: failed
+$ ln /mnt/hello.c /fat/cross.txt
+link /mnt/hello.c /fat/cross.txt: failed
+$ rm /mnt/no_such_file
+rm: /mnt/no_such_file failed to delete
+$ rm /fat/no_such.txt
+rm: /fat/no_such.txt failed to delete
+$ echo ERROR_PATH_DONE
+ERROR_PATH_DONE
+$ 

@@ -1,0 +1,67 @@
+make[1]: Entering directory '/mnt/d/our_Os/project3136859-388873/src'
+qemu-system-loongarch64 -machine virt -kernel kernel/kernel -m 1G -smp 3 -nographic -no-reboot -net none -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-pci,drive=x0,disable-legacy=on,vectors=0
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ mkdir /mnt
+$ mkdir /fat
+$ mount ext2 /mnt
+mount: ext2 on /mnt dev 2
+$ mount fat32 /fat
+mount: fat32 on /fat dev 3
+$ bigfile /mnt/a keep &
+$ bigfile /mnt/b keep &
+$ bigfile /mnt/solo
+bigfile: ok (1048576 bytes, keep)
+bigfile: ok (1048576 bytes, keep)
+bigfile: ok (1048576 bytes, full)
+$ bigfile /mnt/a verify
+bigfile: ok (1048576 bytes, verify)
+$ bigfile /mnt/b verify
+bigfile: ok (1048576 bytes, verify)
+$ bigfile /fat/a keep &
+$ bigfile /fat/b keep &
+$ bigfile /fat/solo
+bigfile: ok (1048576 bytes, keep)
+bigfile: ok (1048576 bytes, keep)
+bigfile: ok (1048576 bytes, full)
+$ bigfile /fat/a verify
+bigfile: ok (1048576 bytes, verify)
+$ bigfile /fat/b verify
+bigfile: ok (1048576 bytes, verify)
+$ cd /mnt
+$ stressfs
+stressfs starting
+write 0
+write 1
+write 2
+write 3
+write 4
+read
+read
+read
+read
+read
+$ cd /
+$ cd /fat
+$ stressfs
+stressfs starting
+write 0
+read
+write 1
+read
+write 2
+read
+write 3
+read
+write 4
+read
+$ cd /
+$ umountstress
+UMOUNT_STRESS_OK ext2 80 loops 2 ticks
+$ echo SMP_DONE
+SMP_DONE
+$ 

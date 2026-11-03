@@ -1,0 +1,346 @@
+qemu-system-loongarch64 -machine virt -kernel kernel/kernel -m 1G -smp 3 -nographic -no-reboot -net none -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-pci,drive=x0,disable-legacy=on,vectors=0
+
+xv6 kernel is booting
+
+hart 2 starting
+hart 1 starting
+init: starting sh
+$ usertests
+usertests starting
+test copyin: OK
+test copyout: OK
+test copyinstr1: OK
+test copyinstr2: OK
+test copyinstr3: OK
+test rwsbrk: OK
+test truncate1: OK
+test truncate2: OK
+test truncate3: OK
+test openiput: OK
+test exitiput: OK
+test iput: OK
+test opentest: OK
+test writetest: OK
+test writebig: OK
+test createtest: OK
+test dirtest: OK
+test exectest: OK
+test pipe1: OK
+test killstatus: OK
+test preempt: kill... wait... OK
+test exitwait: OK
+test reparent: OK
+test twochildren: OK
+test forkfork: OK
+test forkforkfork: OK
+test reparent2: OK
+test mem: OK
+test sharedfd: OK
+test fourfiles: OK
+test createdelete: OK
+test unlinkread: OK
+test linktest: OK
+test concreate: OK
+test linkunlink: OK
+test subdir: OK
+test bigwrite: OK
+test bigfile: OK
+test fourteen: OK
+test rmdot: OK
+test dirfile: OK
+test iref: OK
+test forktest: OK
+test sbrkbasic: OK
+test sbrkmuch: OK
+test kernmem: usertrap(): unexpected trapcause 480000 pid=6474
+            era=0x21d0 badv=0x9000000000200000 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6475
+            era=0x21d0 badv=0x900000000020c350 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6476
+            era=0x21d0 badv=0x90000000002186a0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6477
+            era=0x21d0 badv=0x90000000002249f0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6478
+            era=0x21d0 badv=0x9000000000230d40 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6479
+            era=0x21d0 badv=0x900000000023d090 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6480
+            era=0x21d0 badv=0x90000000002493e0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6481
+            era=0x21d0 badv=0x9000000000255730 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6482
+            era=0x21d0 badv=0x9000000000261a80 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6483
+            era=0x21d0 badv=0x900000000026ddd0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6484
+            era=0x21d0 badv=0x900000000027a120 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6485
+            era=0x21d0 badv=0x9000000000286470 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6486
+            era=0x21d0 badv=0x90000000002927c0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6487
+            era=0x21d0 badv=0x900000000029eb10 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6488
+            era=0x21d0 badv=0x90000000002aae60 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6489
+            era=0x21d0 badv=0x90000000002b71b0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6490
+            era=0x21d0 badv=0x90000000002c3500 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6491
+            era=0x21d0 badv=0x90000000002cf850 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6492
+            era=0x21d0 badv=0x90000000002dbba0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6493
+            era=0x21d0 badv=0x90000000002e7ef0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6494
+            era=0x21d0 badv=0x90000000002f4240 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6495
+            era=0x21d0 badv=0x9000000000300590 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6496
+            era=0x21d0 badv=0x900000000030c8e0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6497
+            era=0x21d0 badv=0x9000000000318c30 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6498
+            era=0x21d0 badv=0x9000000000324f80 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6499
+            era=0x21d0 badv=0x90000000003312d0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6500
+            era=0x21d0 badv=0x900000000033d620 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6501
+            era=0x21d0 badv=0x9000000000349970 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6502
+            era=0x21d0 badv=0x9000000000355cc0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6503
+            era=0x21d0 badv=0x9000000000362010 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6504
+            era=0x21d0 badv=0x900000000036e360 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6505
+            era=0x21d0 badv=0x900000000037a6b0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6506
+            era=0x21d0 badv=0x9000000000386a00 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6507
+            era=0x21d0 badv=0x9000000000392d50 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6508
+            era=0x21d0 badv=0x900000000039f0a0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6509
+            era=0x21d0 badv=0x90000000003ab3f0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6510
+            era=0x21d0 badv=0x90000000003b7740 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6511
+            era=0x21d0 badv=0x90000000003c3a90 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6512
+            era=0x21d0 badv=0x90000000003cfde0 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6513
+            era=0x21d0 badv=0x90000000003dc130 badi=0x29c0a061 sp=0x12e90 crmd=0xb0 prmd=0x7
+OK
+test MAXVAplus: usertrap(): unexpected trapcause 20000 pid=6515
+            era=0x2298 badv=0x800000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6516
+            era=0x2298 badv=0x1000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6517
+            era=0x2298 badv=0x2000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6518
+            era=0x2298 badv=0x4000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6519
+            era=0x2298 badv=0x8000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6520
+            era=0x2298 badv=0x10000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6521
+            era=0x2298 badv=0x20000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6522
+            era=0x2298 badv=0x40000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6523
+            era=0x2298 badv=0x80000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6524
+            era=0x2298 badv=0x100000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6525
+            era=0x2298 badv=0x200000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6526
+            era=0x2298 badv=0x400000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6527
+            era=0x2298 badv=0x800000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6528
+            era=0x2298 badv=0x1000000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6529
+            era=0x2298 badv=0x2000000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6530
+            era=0x2298 badv=0x4000000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 480000 pid=6531
+            era=0x2298 badv=0x8000000000000000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+OK
+test sbrkfail: OK
+test sbrkarg: OK
+test validatetest: OK
+test bsstest: OK
+test bigargtest: OK
+test argptest: OK
+test stacktest: usertrap(): unexpected trapcause 70000 pid=6551
+            era=0x2300 badv=0x11eb0 badi=0x29c0a061 sp=0x12eb0 crmd=0xb0 prmd=0x7
+OK
+test nowrite: usertrap(): unexpected trapcause 40000 pid=6553
+            era=0x23d4 badv=0x0 badi=0x29c0a061 sp=0x12e70 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6554
+            era=0x23d4 badv=0x80000000 badi=0x29c0a061 sp=0x12e70 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6555
+            era=0x23d4 badv=0x3fffffe000 badi=0x29c0a061 sp=0x12e70 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6556
+            era=0x23d4 badv=0x3ffffff000 badi=0x29c0a061 sp=0x12e70 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6557
+            era=0x23d4 badv=0x4000000000 badi=0x29c0a061 sp=0x12e70 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6558
+            era=0x23d4 badv=0xffffffffffffffff badi=0x29c0a061 sp=0x12e70 crmd=0xb0 prmd=0x7
+OK
+test pgbug: OK
+test sbrkbugs: usertrap(): unexpected trapcause 30000 pid=6561
+            era=0x5c40 badv=0x5c40 badi=0x29c0a061 sp=0x12ec0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 30000 pid=6562
+            era=0x5c40 badv=0x5c40 badi=0x29c0a061 sp=0x12ec0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 10000 pid=6563
+            era=0x5b10 badv=0x12ec8 badi=0x29c0a061 sp=0x12ec0 crmd=0xb0 prmd=0x7
+OK
+test sbrklast: OK
+test sbrk8000: OK
+test badarg: OK
+test lazy_alloc: OK
+test lazy_unmap: usertrap(): unexpected trapcause 20000 pid=6569
+            era=0x5020 badv=0x14000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6570
+            era=0x5020 badv=0x1014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6571
+            era=0x5020 badv=0x2014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6572
+            era=0x5020 badv=0x3014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6573
+            era=0x5020 badv=0x4014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6574
+            era=0x5020 badv=0x5014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6575
+            era=0x5020 badv=0x6014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6576
+            era=0x5020 badv=0x7014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6577
+            era=0x5020 badv=0x8014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6578
+            era=0x5020 badv=0x9014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6579
+            era=0x5020 badv=0xa014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6580
+            era=0x5020 badv=0xb014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6581
+            era=0x5020 badv=0xc014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6582
+            era=0x5020 badv=0xd014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6583
+            era=0x5020 badv=0xe014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6584
+            era=0x5020 badv=0xf014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6585
+            era=0x5020 badv=0x10014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6586
+            era=0x5020 badv=0x11014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6587
+            era=0x5020 badv=0x12014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6588
+            era=0x5020 badv=0x13014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6589
+            era=0x5020 badv=0x14014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6590
+            era=0x5020 badv=0x15014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6591
+            era=0x5020 badv=0x16014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6592
+            era=0x5020 badv=0x17014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6593
+            era=0x5020 badv=0x18014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6594
+            era=0x5020 badv=0x19014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6595
+            era=0x5020 badv=0x1a014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6596
+            era=0x5020 badv=0x1b014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6597
+            era=0x5020 badv=0x1c014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6598
+            era=0x5020 badv=0x1d014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6599
+            era=0x5020 badv=0x1e014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6600
+            era=0x5020 badv=0x1f014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6601
+            era=0x5020 badv=0x20014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6602
+            era=0x5020 badv=0x21014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6603
+            era=0x5020 badv=0x22014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6604
+            era=0x5020 badv=0x23014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6605
+            era=0x5020 badv=0x24014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6606
+            era=0x5020 badv=0x25014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6607
+            era=0x5020 badv=0x26014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6608
+            era=0x5020 badv=0x27014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6609
+            era=0x5020 badv=0x28014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6610
+            era=0x5020 badv=0x29014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6611
+            era=0x5020 badv=0x2a014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6612
+            era=0x5020 badv=0x2b014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6613
+            era=0x5020 badv=0x2c014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6614
+            era=0x5020 badv=0x2d014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6615
+            era=0x5020 badv=0x2e014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6616
+            era=0x5020 badv=0x2f014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6617
+            era=0x5020 badv=0x30014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6618
+            era=0x5020 badv=0x31014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6619
+            era=0x5020 badv=0x32014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6620
+            era=0x5020 badv=0x33014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6621
+            era=0x5020 badv=0x34014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6622
+            era=0x5020 badv=0x35014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6623
+            era=0x5020 badv=0x36014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6624
+            era=0x5020 badv=0x37014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6625
+            era=0x5020 badv=0x38014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6626
+            era=0x5020 badv=0x39014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6627
+            era=0x5020 badv=0x3a014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6628
+            era=0x5020 badv=0x3b014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6629
+            era=0x5020 badv=0x3c014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6630
+            era=0x5020 badv=0x3d014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6631
+            era=0x5020 badv=0x3e014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+usertrap(): unexpected trapcause 20000 pid=6632
+            era=0x5020 badv=0x3f014000 badi=0x29c0a061 sp=0x12ea0 crmd=0xb0 prmd=0x7
+OK
+test lazy_copy: OK
+usertests slow tests starting
+test bigdir: OK
+test manywrites: OK
+test badwrite: OK
+test execout: OK
+test diskfull: balloc: out of blocks
+balloc: out of blocks
+OK
+test outofinodes: ialloc: no inodes
+OK
+ALL TESTS PASSED
+$ qemu-system-loongarch64: terminating on signal 15 from pid 1248 ()

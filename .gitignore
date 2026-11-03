@@ -1,0 +1,19 @@
+# build outputs
+*.o
+*.d
+*.asm
+*.sym
+*.img
+.arch-*
+src/kernel/kernel
+src/user/_*
+src/mkfs/mkfs
+.last-test
+.last-test-arch
+tests/**/logs/
+# baseline copy, downloaded sources and cross-build trees
+orig/
+userland/src/
+userland/stage/
+userland/out/
+userland/musl/

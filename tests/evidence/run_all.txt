@@ -1,0 +1,70 @@
+# Final regression summary, 2026-08-16.
+# Source: tests/run_all.sh, 09:12:07+08:00 through 09:40:20+08:00.
+# Scope: 11 test points x 2 architectures = 22 executions.
+# Consolidated from the corresponding raw logs under tests/*/logs/.
+===== test_baseline : 2026-08-16T09:12:07+08:00 =====
+test_baseline            PASS
+===== public_vfs : 2026-08-16T09:13:46+08:00 =====
+public_vfs               PASS
+===== ext2 : 2026-08-16T09:14:28+08:00 =====
+ext2                     PASS
+===== fat32 : 2026-08-16T09:15:26+08:00 =====
+fat32                    PASS
+===== error : 2026-08-16T09:16:22+08:00 =====
+error                    PASS
+===== semantics : 2026-08-16T09:17:15+08:00 =====
+semantics                PASS
+===== persist : 2026-08-16T09:18:24+08:00 =====
+persist                  PASS
+===== smp : 2026-08-16T09:19:30+08:00 =====
+smp                      PASS
+===== mount_lifecycle : 2026-08-16T09:21:54+08:00 =====
+mount_lifecycle          PASS
+===== remount_io : 2026-08-16T09:23:09+08:00 =====
+remount_io               PASS
+===== mount_storm : 2026-08-16T09:24:49+08:00 =====
+mount_storm              PASS
+===== loongarch_baseline : 2026-08-16T09:25:41+08:00 =====
+loongarch_baseline       PASS
+===== loongarch_public_vfs : 2026-08-16T09:27:37+08:00 =====
+loongarch_public_vfs     PASS
+===== loongarch_ext2 : 2026-08-16T09:28:22+08:00 =====
+loongarch_ext2           PASS
+===== loongarch_fat32 : 2026-08-16T09:29:28+08:00 =====
+loongarch_fat32          PASS
+===== loongarch_error : 2026-08-16T09:30:29+08:00 =====
+loongarch_error          PASS
+===== loongarch_semantics : 2026-08-16T09:31:26+08:00 =====
+loongarch_semantics      PASS
+===== loongarch_persist : 2026-08-16T09:32:41+08:00 =====
+loongarch_persist        PASS
+===== loongarch_smp : 2026-08-16T09:33:56+08:00 =====
+loongarch_smp            PASS
+===== loongarch_mount_lifecycle : 2026-08-16T09:36:15+08:00 =====
+loongarch_mount_lifecycle PASS
+===== loongarch_remount_io : 2026-08-16T09:37:31+08:00 =====
+loongarch_remount_io     PASS
+===== loongarch_mount_storm : 2026-08-16T09:39:28+08:00 =====
+loongarch_mount_storm    PASS
+run_all: PASS (22/22)
+
+Focused assertions from the same run:
+error/riscv concurrent mounts      failed 7/7, ext2 success 1/1, fat32 success 1/1
+error/loongarch concurrent mounts  failed 7/7, ext2 success 1/1, fat32 success 1/1
+semantics/riscv ELF exec           EXT2_EXEC_OK 2/2, FAT32_EXEC_OK 2/2
+semantics/loongarch ELF exec       EXT2_EXEC_OK 2/2, FAT32_EXEC_OK 2/2
+semantics/riscv safe umount        busy 2/2, UMOUNT_SEMANTICS_OK 1/1
+semantics/loongarch safe umount    busy 2/2, UMOUNT_SEMANTICS_OK 1/1
+smp/riscv mount/umount race        UMOUNT_STRESS_OK ext2 80 loops, panic 0
+smp/loongarch mount/umount race    UMOUNT_STRESS_OK ext2 80 loops, panic 0
+mount_lifecycle/riscv              busy 5/5, mount rollback 2/2, panic 0
+mount_lifecycle/loongarch          busy 5/5, mount rollback 2/2, panic 0
+remount_io/riscv                   8388608 bytes validated, panic 0
+remount_io/loongarch               8388608 bytes validated, panic 0
+mount_storm/riscv                  2048 worker iterations, two backends, panic 0
+mount_storm/loongarch              2048 worker iterations, two backends, panic 0
+
+Post-run gates on the same kernel revision:
+full_usertests/riscv           69 named tests, ALL TESTS PASSED, panic 0
+full_usertests/loongarch       69 named tests, ALL TESTS PASSED, panic 0
+e2fsck after loongarch_mount_storm five passes completed, exit status 0

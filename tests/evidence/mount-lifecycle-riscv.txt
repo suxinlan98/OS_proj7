@@ -1,0 +1,66 @@
+make[1]: Entering directory '/mnt/d/our_Os/project3136859-388873/src'
+qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+init: starting sh
+$ mkdir /mnt
+$ mkdir /fat
+$ echo LOWER_MNT_VISIBLE > /mnt/lower.txt
+$ echo LOWER_FAT_VISIBLE > /fat/lower.txt
+$ umount /no_such_mount
+umount: busy or invalid
+$ umount /
+umount: busy or invalid
+$ umount /.
+umount: busy or invalid
+$ umount /..
+umount: busy or invalid
+$ mount ext2 /mnt 3
+mount: failed
+$ mount ext2 /mnt
+mount: ext2 on /mnt dev 2
+$ rm /mnt
+rm: /mnt failed to delete
+$ mkdir /mnt/nest
+$ echo EXT2_CHILD_VISIBLE > /mnt/nest/lower.txt
+$ mount fat32 /fat 2
+mount: failed
+$ mount fat32 /mnt/nest
+mount: fat32 on /mnt/nest dev 3
+$ echo FAT_NESTED_PERSIST > /mnt/nest/p.txt
+$ rm /mnt/nest
+rm: /mnt/nest failed to delete
+$ umount /mnt
+umount: busy or invalid
+$ umount /mnt/nest
+umount: /mnt/nest
+$ cat /mnt/nest/lower.txt
+EXT2_CHILD_VISIBLE
+$ mount fat32 /mnt/nest
+mount: fat32 on /mnt/nest dev 3
+$ cat /mnt/nest/p.txt
+FAT_NESTED_PERSIST
+$ umount /mnt/nest
+umount: /mnt/nest
+$ umount /mnt
+umount: /mnt
+$ cat /mnt/lower.txt
+LOWER_MNT_VISIBLE
+$ mount ext2 /mnt
+mount: ext2 on /mnt dev 2
+$ cat /mnt/nest/lower.txt
+EXT2_CHILD_VISIBLE
+$ umount /mnt
+umount: /mnt
+$ mount fat32 /fat
+mount: fat32 on /fat dev 3
+$ cat /fat/p.txt
+FAT_NESTED_PERSIST
+$ umount /fat
+umount: /fat
+$ cat /fat/lower.txt
+LOWER_FAT_VISIBLE
+$ echo MOUNT_LIFECYCLE_DONE
+MOUNT_LIFECYCLE_DONE
+$ 

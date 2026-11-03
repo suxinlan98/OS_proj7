@@ -1,0 +1,27 @@
+make[1]: Entering directory '/mnt/d/our_Os/project3136859-388873/src'
+qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ mkdir /mnt
+$ mkdir /fat
+$ mount ext2 /mnt
+mount: ext2 on /mnt dev 2
+$ mount fat32 /fat
+mount: fat32 on /fat dev 3
+$ echo EXT2_STORM_PROBE > /mnt/probe.txt
+$ echo FAT_STORM_PROBE > /fat/probe.txt
+$ umountstress ext2 /mnt 2 /mnt/probe.txt 256
+UMOUNT_STRESS_OK ext2 256 loops 38 ticks
+$ cat /mnt/probe.txt
+EXT2_STORM_PROBE
+$ umountstress fat32 /fat 3 /fat/probe.txt 256
+UMOUNT_STRESS_OK fat32 256 loops 39 ticks
+$ cat /fat/probe.txt
+FAT_STORM_PROBE
+$ echo MOUNT_STORM_DONE
+MOUNT_STORM_DONE
+$ 
