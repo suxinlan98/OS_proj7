@@ -24,6 +24,8 @@ if [ ! -f "$XV6_DIR/fs.img" ]; then
 fi
 
 echo "[fault] running QEMU command test"
+# Keep incremental rebuilds consistent with the fault build.
+export KEXTRA=-DP0_TEST_HOOKS
 python3 "$ROOT_DIR/tests/runner/run_qemu_case.py" \
   --case "$CASE_NAME" \
   --xv6-dir "$XV6_DIR" \
@@ -35,6 +37,9 @@ python3 "$ROOT_DIR/tests/runner/run_qemu_case.py" \
   --prompt-wait \
   --step-wait 0.01 \
   --expect "fsfault: file system server is a separate process: OK" \
+  --expect "fsfault: restart denied while service down: OK" \
+  --expect "fsfault: no server created by unauthorized restart: OK" \
+  --expect "fsfault: init restart still works: OK" \
   --expect "fsfault: init restarted the file system server: OK" \
   --expect "fsfault: pipes/fork work while file system is down: OK" \
   --expect "fsfault: stale open file is rejected: OK" \

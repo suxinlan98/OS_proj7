@@ -14,6 +14,15 @@
 #include "buf.h"
 #include "ipc.h"
 
+extern struct proc *initproc;
+
+#ifdef P0_TEST_HOOKS
+// Test-only: while set, init is held inside svc_restart so that the restart
+// authorization check can be observed deterministically while the service is
+// down.  Accessed only through the __atomic builtins (cross-CPU shared).
+static int svc_hold;
+#endif
+
 struct svc {
   struct spinlock lock;
   struct proc *server;      // registered server, 0 = service down
@@ -335,8 +344,41 @@ uint64
 sys_svc_restart(void)
 {
   int id;
+  struct proc *p = myproc();
+
   argint(0, &id);
-  if(id != SVC_FS || svc[id].server != 0)
+#ifdef P0_TEST_HOOKS
+  if(id == -2){
+    __atomic_store_n(&svc_hold, 1, __ATOMIC_RELEASE);
+    return 0;
+  }
+  if(id == -1){
+    __atomic_store_n(&svc_hold, 0, __ATOMIC_RELEASE);
+    return 0;
+  }
+  if(p == initproc && __atomic_load_n(&svc_hold, __ATOMIC_ACQUIRE)){
+    uint start, now;
+    acquire(&tickslock);
+    start = ticks;
+    release(&tickslock);
+    while(__atomic_load_n(&svc_hold, __ATOMIC_ACQUIRE)){
+      acquire(&tickslock);
+      now = ticks;
+      release(&tickslock);
+      if(now - start >= 300)   // bounded; the test releases the hold much earlier
+        break;
+      yield();
+    }
+  }
+#endif
+  // Only init supervises the file system service.  Without this, any process
+  // could spawn a second server while the service is down, and the loser of
+  // the registration race panics.
+  if(p != initproc)
+    return -1;
+  if(id != SVC_FS)
+    return -1;
+  if(svc[SVC_FS].server != 0)
     return -1;
   return spawn_fsserver();
 }

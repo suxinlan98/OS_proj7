@@ -92,6 +92,9 @@ main(int argc, char *argv[])
   int spid, npid, fd, fd2, i, n;
   char buf[16];
   int p[2];
+#ifdef P0_TEST_HOOKS
+  int rspid, rnpid;
+#endif
 
   spid = svc_pid(SVC_FS);
   check(spid > 0, "file system server is a separate process");
@@ -107,7 +110,27 @@ main(int argc, char *argv[])
   fd2 = open("/fdir/open2", O_CREATE | O_RDWR);
   check(fd2 >= 0, "create before crash");
 
+#ifdef P0_TEST_HOOKS
+  // --- 0. restart is init-only --------------------------------------
+  // Hold init inside svc_restart so the service stays down and the denial
+  // can be observed without racing the supervisor's restart.
+  rspid = svc_pid(SVC_FS);
+  check(svc_restart(-2) == 0, "test hook armed");
+  kill(rspid);
+  for(i = 0; i < 500 && svc_pid(SVC_FS) != 0; i++)
+    pause(1);
+  check(svc_pid(SVC_FS) == 0, "service stays down while init is held");
+  check(svc_restart(SVC_FS) < 0, "restart denied while service down");
+  pause(5);
+  check(svc_pid(SVC_FS) == 0, "no server created by unauthorized restart");
+  check(svc_restart(-1) == 0, "test hook released");
+  rnpid = wait_new_server(rspid);
+  check(rnpid > 0 && rnpid != rspid, "init restart still works");
+#endif
+
   // --- 1. kill the server -------------------------------------------
+  // section 0 restarted the server, so re-read the pid of the one to kill
+  spid = svc_pid(SVC_FS);
   kill_server(0);
   // The kernel and unrelated services must not care: pipes, fork, console.
   pipe(p);
