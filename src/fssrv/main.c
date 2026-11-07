@@ -18,6 +18,9 @@
 #include "defs.h"
 #include "file.h"
 #include "svcapi.h"
+#ifdef P0_TEST_HOOKS
+#include "syscall.h"
+#endif
 
 // A handle names one reference to an inode held on behalf of a client:
 // an open file (with its offset) or a current directory.
@@ -347,6 +350,49 @@ do_close(int h)
   return 0;
 }
 
+#ifdef P0_TEST_HOOKS
+static int xfer_bad_pid;   // next FS_READ from this client runs the probes
+
+#if defined(__riscv)
+// The svc_xfer() prototype takes an int direction, so a 64-bit value would
+// be truncated before the syscall.  Call it directly with a wide a1.
+static int
+svc_xfer_wide(int id, uint64 dir, uint64 caddr, void *buf, int n)
+{
+  register uint64 a0 asm("a0") = (uint64)id;
+  register uint64 a1 asm("a1") = dir;
+  register uint64 a2 asm("a2") = caddr;
+  register uint64 a3 asm("a3") = (uint64)buf;
+  register uint64 a4 asm("a4") = (uint64)n;
+  register uint64 a7 asm("a7") = SYS_svc_xfer;
+
+  asm volatile("ecall" : "+r"(a0)
+               : "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a7)
+               : "memory");
+  return (int)a0;
+}
+#endif
+
+// Every invalid direction must be rejected before any copy happens.  Return
+// -1 only when all probes are rejected; otherwise a distinct negative value
+// lets the client prove which probe was accepted.
+static int
+bad_xfer_probe(uint64 gaddr)
+{
+  static char badmark[4] = { 'B', 'A', 'D', '!' };
+  long r0, r4, rw = -1;
+  int accepted;
+
+  r0 = svc_xfer(SVC_FS, 99, gaddr, badmark, 0);
+  r4 = svc_xfer(SVC_FS, 99, gaddr, badmark, 4);
+#if defined(__riscv)
+  rw = svc_xfer_wide(SVC_FS, 0x100000000ULL, gaddr, badmark, 4);
+#endif
+  accepted = (r0 != -1) + 2 * (r4 != -1) + 4 * (rw != -1);
+  return accepted ? -1 - accepted : -1;
+}
+#endif
+
 static long
 do_read(struct ipcmsg *r, int usepos)
 {
@@ -355,6 +401,12 @@ do_read(struct ipcmsg *r, int usepos)
 
   if(f == 0)
     return -1;
+#ifdef P0_TEST_HOOKS
+  if(r->op == FS_READ && xfer_bad_pid != 0 && r->pid == xfer_bad_pid){
+    xfer_bad_pid = 0;
+    return bad_xfer_probe(r->gaddr);
+  }
+#endif
   ilock(f->ip);
   if(usepos){
     n = vfs_readi(f->ip, 1, r->gaddr, (uint)r->a0, (uint)r->a1);
@@ -458,6 +510,13 @@ dispatch(struct ipcmsg *r)
   case FS_MKNOD:  return do_mknod(r->s1, r->a0, r->a1);
   case FS_CHDIR:  return do_chdir(r->s1);
   case FS_MOUNT:
+#ifdef P0_TEST_HOOKS
+    // Arm the direction probes for the next read from this client.
+    if(strlen(r->s1) == 11 && strncmp(r->s1, "__xferdir__", 11) == 0){
+      xfer_bad_pid = r->pid;
+      return 0;
+    }
+#endif
 #ifdef FSSRV_FAULT_INJECT
     // Test hook (tests/fault): a "mount" of the fake type "__crash__"
     // makes the server dereference a null pointer, as a bug would.

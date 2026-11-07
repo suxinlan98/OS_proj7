@@ -328,6 +328,40 @@ main(int argc, char *argv[])
     close(fd);
   check(umount("/mnt2") == 0, "umount ext2");
 
+#ifdef P0_TEST_HOOKS
+  // --- 6. svc_xfer direction whitelist ------------------------------
+  // The server runs the invalid-direction probes on the next read from
+  // this process; both legal directions are exercised around them.
+  {
+    char xb[8];
+    int xn, xfd;
+
+    check(write_file("/xferlegal", "abcdefgh") == 0,
+          "legal xfer from client works");
+    check(file_is("/xferlegal", "abcdefgh"),
+          "legal xfer to client works");
+    xfd = open("/xferlegal", O_RDONLY);
+    check(xfd >= 0, "open for xfer direction test");
+    if(xfd >= 0){
+      memset(xb, 'Z', sizeof(xb));
+      xn = read(xfd, xb, 4);
+      check(xn == 4 && memcmp(xb, "abcd", 4) == 0,
+            "legal xfer before direction test");
+      check(mount("__xferdir__", "/", 1) == 0,
+            "xfer direction hook armed");
+      memset(xb, 'Z', sizeof(xb));
+      xn = read(xfd, xb, 4);
+      check(xn == -1 && memcmp(xb, "ZZZZ", 4) == 0,
+            "invalid xfer directions rejected without copying");
+      memset(xb, 0, sizeof(xb));
+      xn = read(xfd, xb, 4);
+      check(xn == 4 && memcmp(xb, "efgh", 4) == 0,
+            "legal xfer resumes after rejection");
+      close(xfd);
+    }
+  }
+#endif
+
   if(failed){
     printf("FSFAULT_FAIL\n");
     exit(1);

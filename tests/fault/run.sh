@@ -72,6 +72,13 @@ python3 "$ROOT_DIR/tests/runner/run_qemu_case.py" \
   --expect "fsfault: recovered from a crash inside the server: OK" \
   --expect "fsfault: survived 6 server crashes under load: OK" \
   --expect "fsfault: remount ext2 after restart: OK" \
+  --expect "fsfault: legal xfer from client works: OK" \
+  --expect "fsfault: legal xfer to client works: OK" \
+  --expect "fsfault: open for xfer direction test: OK" \
+  --expect "fsfault: legal xfer before direction test: OK" \
+  --expect "fsfault: xfer direction hook armed: OK" \
+  --expect "fsfault: invalid xfer directions rejected without copying: OK" \
+  --expect "fsfault: legal xfer resumes after rejection: OK" \
   --expect "FSFAULT_DONE" \
   --expect "FAULT_PATH_DONE" \
   --reject ": FAIL" \

@@ -239,8 +239,8 @@ sys_svc_reply(void)
 uint64
 sys_svc_xfer(void)
 {
-  int id, dir, n;
-  uint64 caddr, buf;
+  int id, n;
+  uint64 dir, caddr, buf;
   struct svc *s;
   struct proc *p = myproc(), *c;
   char tmp[256];
@@ -248,10 +248,13 @@ sys_svc_xfer(void)
   uint64 gaddr, glen;
 
   argint(0, &id);
-  argint(1, &dir);
+  argaddr(1, &dir);
   argaddr(2, &caddr);
   argaddr(3, &buf);
   argint(4, &n);
+  // Directions are a closed set: anything else must not touch any buffer.
+  if(dir != XFER_TO_CLIENT && dir != XFER_FROM_CLIENT)
+    return -1;
   if(id <= 0 || id >= NSVC || n < 0)
     return -1;
   s = &svc[id];
