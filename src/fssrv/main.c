@@ -432,8 +432,15 @@ static long
 dispatch(struct ipcmsg *r)
 {
   // Resolve relative paths against the calling process's directory.
-  struct fh *c = hget(r->cwd);
-  fs_cwd = c ? c->ip : 0;
+  // A nonzero handle this incarnation does not know is an error, not root.
+  if(r->cwd != 0){
+    struct fh *c = hget(r->cwd);
+    if(c == 0)
+      return -1;
+    fs_cwd = c->ip;
+  } else {
+    fs_cwd = 0;
+  }
 
   r->s1[MAXPATH-1] = 0;
   r->s2[MAXPATH-1] = 0;

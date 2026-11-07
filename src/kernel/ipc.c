@@ -158,7 +158,10 @@ sys_svc_register(void)
     return -1;
   }
   s->server = myproc();
-  s->gen++;
+  if(s->gen == 0x7fffffff)
+    s->gen = 1;
+  else
+    s->gen++;
   release(&s->lock);
   return s->gen;
 }
@@ -385,12 +388,69 @@ sys_svc_restart(void)
 
 // ---- file system client helpers (used by the system call layer) ----
 
+enum { FS_CWD_NONE, FS_CWD_ABS, FS_CWD_REL, FS_CWD_INVALID };
+
+// How does this request use the caller's current directory?
+static int
+fs_cwd_need(struct ipcmsg *m)
+{
+  switch(m->op){
+  case FS_READ:
+  case FS_WRITE:
+  case FS_PREAD:
+  case FS_STAT:
+  case FS_CLOSE:
+  case FS_DUP:
+    return FS_CWD_NONE;
+  case FS_OPEN:
+  case FS_UNLINK:
+  case FS_MKDIR:
+  case FS_MKNOD:
+  case FS_CHDIR:
+  case FS_UMOUNT:
+    return m->s1[0] == '/' ? FS_CWD_ABS : FS_CWD_REL;
+  case FS_LINK:
+    return (m->s1[0] == '/' && m->s2[0] == '/') ? FS_CWD_ABS : FS_CWD_REL;
+  case FS_MOUNT:
+    return m->s2[0] == '/' ? FS_CWD_ABS : FS_CWD_REL;
+  default:
+    return FS_CWD_INVALID;      // unknown op: never guess a cwd policy
+  }
+}
+
+// Root is exactly (h=0, gen=0).  A usable remote cwd is exactly
+// (h>0, gen>0).  Anything else is a lost or inconsistent handle: relative
+// names must fail instead of silently resolving from the root.
+static int
+fs_cwd_usable(struct proc *p)
+{
+  if(p->cwdstale)
+    return 0;
+  if(p->cwdh == 0)
+    return p->cwdgen == 0;
+  return p->cwdh > 0 && p->cwdgen > 0;
+}
+
 // Call the file system server on behalf of the current process.
 long
 fs_call(struct ipcmsg *m, uint64 gaddr, uint64 glen, int gkernel)
 {
   struct proc *p = myproc();
-  m->cwd = (p->cwdh && p->cwdgen == svc_gen(SVC_FS)) ? p->cwdh : 0;
+  int need = fs_cwd_need(m);
+
+  if(need == FS_CWD_NONE){
+    m->cwd = 0;                 // do not touch m->gen: it is the handle generation
+  } else if(need == FS_CWD_INVALID){
+    return -1;                  // fail closed before any IPC
+  } else if(need == FS_CWD_ABS){
+    m->cwd = 0;                 // absolute paths are cwd-independent
+    m->gen = 0;
+  } else {
+    if(!fs_cwd_usable(p))
+      return -1;                // explicit failure, never fall back to root
+    m->cwd = p->cwdh;           // 0 = root, which is incarnation-independent
+    m->gen = p->cwdgen;         // ipc_call rejects under s->lock if stale
+  }
   return ipc_call(SVC_FS, m, gaddr, glen, gkernel);
 }
 
@@ -417,15 +477,28 @@ fs_dup_cwd(struct proc *np, struct proc *p)
 
   np->cwdh = 0;
   np->cwdgen = 0;
-  if(p->cwdh <= 0 || p->cwdgen != svc_gen(SVC_FS))
+  np->cwdstale = 0;
+
+  if(p->cwdstale){
+    np->cwdstale = 1;           // parent already lost its cwd
     return;
+  }
+  if(p->cwdh == 0 && p->cwdgen == 0)
+    return;                     // valid root: nothing to copy
+  if(!fs_cwd_usable(p)){
+    np->cwdstale = 1;           // inconsistent/lost handle: never root
+    return;
+  }
+
   memset(&m, 0, sizeof(m));
   m.op = FS_DUP;
   m.h = p->cwdh;
-  m.gen = p->cwdgen;
+  m.gen = p->cwdgen;            // >0, so ipc_call compares generations under the lock
   long h = ipc_call(SVC_FS, &m, 0, 0, 0);
   if(h > 0){
     np->cwdh = h;
     np->cwdgen = p->cwdgen;
+  } else {
+    np->cwdstale = 1;           // stale generation or failed dup: not root
   }
 }

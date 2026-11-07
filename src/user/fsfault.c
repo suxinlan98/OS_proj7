@@ -102,6 +102,8 @@ main(int argc, char *argv[])
 
   // Committed state, an open file, and a current directory that belong to
   // the server instance about to die.
+  // Root decoy: a stale cwd must not silently resolve relative names here.
+  check(write_file("/keep", "root-keep") == 0, "write root decoy");
   mkdir("fdir");
   check(write_file("/fdir/keep", "committed-data") == 0, "write before crash");
   chdir("fdir");
@@ -133,14 +135,16 @@ main(int argc, char *argv[])
   spid = svc_pid(SVC_FS);
   kill_server(0);
   // The kernel and unrelated services must not care: pipes, fork, console.
+  int pchild, pst = -1, pwp;
   pipe(p);
-  if(fork() == 0){
+  pchild = fork();
+  if(pchild == 0){
     write(p[1], "ping", 4);
     exit(0);
   }
   n = read(p[0], buf, 4);
-  wait(0);
-  int pipeok = (n == 4 && memcmp(buf, "ping", 4) == 0);
+  pwp = wait(&pst);
+  int pipeok = (n == 4 && memcmp(buf, "ping", 4) == 0 && pwp == pchild && pst == 0);
   close(p[0]);
   close(p[1]);
 
@@ -158,13 +162,118 @@ main(int argc, char *argv[])
   check(fstat(fd, &st) < 0, "stale fstat is rejected");
   close(fd);          // must not hurt the new server
   close(fd2);
-  // cwd handle is stale -> relative names resolve from "/"
-  check(open("keep", O_RDONLY) < 0, "stale cwd no longer resolves relative names");
+  // cwd handle is stale -> relative names must fail, even though "/keep" exists
+  fd = open("keep", O_RDONLY);
+  check(fd < 0, "stale cwd no longer resolves relative names");
+  if(fd >= 0)
+    close(fd);
   chdir("/");
   check(file_is("/fdir/keep", "committed-data"), "data committed before the crash survived");
   check(write_file("/after", "new-server") == 0 && file_is("/after", "new-server"),
         "new server serves reads and writes");
   check(open("/fdir/open2", O_RDONLY) >= 0, "file created before the crash exists");
+
+  // --- 2b. a stale cwd fails relative paths, absolute paths still work ---
+  // The order matters: the relative chdir below must stay last, because on
+  // the buggy kernel it "cures" the cwd and would hide the fork bug.
+  int kst = -1, cp, wpid = -1;
+
+  check(write_file("/linkdir", "root-link") == 0, "write root link decoy");
+  check(write_file("/fdir/link2", "relative-link") == 0, "write relative decoy");
+  mkdir("/umnt");
+  mkdir("/x");
+  check(link("/hello", "/x/prog") == 0, "absolute link to /hello");
+  check(chdir("/fdir") == 0 && file_is("keep", "committed-data"),
+        "relative access works before the crash");
+
+  spid = svc_pid(SVC_FS);
+  kill_server(0);
+  npid = wait_new_server(spid);
+  check(npid > 0 && npid != spid, "server restarted for stale cwd test");
+
+  // A. relative operations must fail and must not touch the root directory.
+  fd = open("keep", O_RDONLY);
+  check(fd < 0, "stale cwd rejects relative open");
+  if(fd >= 0)
+    close(fd);
+  check(mkdir("newdir") < 0 && open("/newdir", O_RDONLY) < 0,
+        "stale cwd rejects relative mkdir");
+  check(unlink("linkdir") < 0 && file_is("/linkdir", "root-link"),
+        "stale cwd rejects relative unlink");
+  check(link("keep", "/linkabs") < 0 && open("/linkabs", O_RDONLY) < 0,
+        "stale cwd rejects relative link source");
+  check(link("/fdir/keep", "linkrel") < 0 && open("/linkrel", O_RDONLY) < 0,
+        "stale cwd rejects relative link target");
+  check(mknod("devx", 1, 1) < 0 && unlink("/devx") < 0,
+        "stale cwd rejects relative mknod");
+  check(mount("ext2", "umnt", 2) < 0, "stale cwd rejects relative mount");
+
+  fd = open("/keep", O_RDONLY);
+  check(fd >= 0, "absolute open works with stale cwd");
+  if(fd >= 0)
+    close(fd);
+  check(file_is("/keep", "root-keep"), "absolute read works with stale cwd");
+  check(link("/fdir/keep", "/linkabs2") == 0 &&
+        file_is("/linkabs2", "committed-data"),
+        "absolute link works with stale cwd");
+  check(mount("ext2", "/umnt", 2) == 0, "absolute mount works with stale cwd");
+  fd = open("/umnt/hello.c", O_RDONLY);
+  check(fd >= 0 && read(fd, buf, 4) == 4, "absolute path into mount works");
+  if(fd >= 0)
+    close(fd);
+  check(umount("umnt") < 0, "stale cwd rejects relative umount");
+
+  // B. fork while the parent cwd is still stale: no root cwd for the child.
+  cp = fork();
+  if(cp == 0){
+    fd = open("keep", O_RDONLY);
+    check(fd < 0, "fork child does not inherit a root cwd");
+    if(fd >= 0)
+      close(fd);
+    check(file_is("/keep", "root-keep"), "fork child absolute access works");
+    check(chdir("/fdir") == 0 && file_is("keep", "committed-data"),
+          "fork child recovers with an absolute chdir");
+    exit(failed ? 1 : 0);
+  }
+  kst = -1;
+  wpid = wait(&kst);
+  check(cp > 0 && wpid == cp && kst == 0, "fork child cwd checks passed");
+
+  cp = fork();
+  if(cp == 0){
+    char *av[] = { "x/prog", 0 };
+    exec("x/prog", av);
+    exit(42);
+  }
+  kst = -1;
+  wpid = wait(&kst);
+  check(cp > 0 && wpid == cp && kst == 42, "stale cwd rejects relative exec");
+
+  cp = fork();
+  if(cp == 0){
+    char *av[] = { "hello", 0 };
+    exec("hello", av);
+    exit(43);
+  }
+  kst = -1;
+  wpid = wait(&kst);
+  check(cp > 0 && wpid == cp && kst == 0, "bare-name exec still falls back to root");
+
+  // C. last stale operation: on the buggy kernel this rewrites the cwd.
+  check(chdir("fdir") < 0, "stale cwd rejects relative chdir");
+
+  // D. an absolute chdir restores relative access.
+  check(chdir("/fdir") == 0 && file_is("keep", "committed-data"),
+        "absolute chdir restores relative access");
+  check(link("link2", "/linkabs3") == 0 &&
+        file_is("/linkabs3", "relative-link"),
+        "relative link works after recovery");
+  check(chdir("/") == 0, "chdir back to root");
+  check(umount("/umnt") == 0, "absolute umount succeeds");
+  fd = open("/umnt/hello.c", O_RDONLY);
+  check(fd < 0, "rejected relative umount had no effect");
+  if(fd >= 0)
+    close(fd);
 
   // --- 3. crash from inside the server (null dereference) -----------
   spid = svc_pid(SVC_FS);
@@ -199,8 +308,9 @@ main(int argc, char *argv[])
     if(npid <= 0)
       break;
   }
-  check(i == 6, "survived 6 server crashes under load");
-  wait(0);
+  int lst = -1;
+  int lwp = wait(&lst);
+  check(i == 6 && lwp == child && lst == 0, "survived 6 server crashes under load");
   check(file_is("/fdir/keep", "committed-data"), "old data intact after repeated crashes");
   check(write_file("/final", "ok") == 0 && file_is("/final", "ok"), "file system fully usable at the end");
 

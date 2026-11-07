@@ -44,6 +44,31 @@ python3 "$ROOT_DIR/tests/runner/run_qemu_case.py" \
   --expect "fsfault: pipes/fork work while file system is down: OK" \
   --expect "fsfault: stale open file is rejected: OK" \
   --expect "fsfault: data committed before the crash survived: OK" \
+  --expect "fsfault: server restarted for stale cwd test: OK" \
+  --expect "fsfault: stale cwd rejects relative open: OK" \
+  --expect "fsfault: stale cwd rejects relative mkdir: OK" \
+  --expect "fsfault: stale cwd rejects relative unlink: OK" \
+  --expect "fsfault: stale cwd rejects relative link source: OK" \
+  --expect "fsfault: stale cwd rejects relative link target: OK" \
+  --expect "fsfault: stale cwd rejects relative mknod: OK" \
+  --expect "fsfault: stale cwd rejects relative mount: OK" \
+  --expect "fsfault: absolute open works with stale cwd: OK" \
+  --expect "fsfault: absolute read works with stale cwd: OK" \
+  --expect "fsfault: absolute link works with stale cwd: OK" \
+  --expect "fsfault: absolute mount works with stale cwd: OK" \
+  --expect "fsfault: absolute path into mount works: OK" \
+  --expect "fsfault: stale cwd rejects relative umount: OK" \
+  --expect "fsfault: fork child does not inherit a root cwd: OK" \
+  --expect "fsfault: fork child absolute access works: OK" \
+  --expect "fsfault: fork child recovers with an absolute chdir: OK" \
+  --expect "fsfault: fork child cwd checks passed: OK" \
+  --expect "fsfault: stale cwd rejects relative exec: OK" \
+  --expect "fsfault: bare-name exec still falls back to root: OK" \
+  --expect "fsfault: stale cwd rejects relative chdir: OK" \
+  --expect "fsfault: absolute chdir restores relative access: OK" \
+  --expect "fsfault: relative link works after recovery: OK" \
+  --expect "fsfault: absolute umount succeeds: OK" \
+  --expect "fsfault: rejected relative umount had no effect: OK" \
   --expect "fsfault: recovered from a crash inside the server: OK" \
   --expect "fsfault: survived 6 server crashes under load: OK" \
   --expect "fsfault: remount ext2 after restart: OK" \

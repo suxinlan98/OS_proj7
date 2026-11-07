@@ -265,6 +265,7 @@ sys_chdir(void)
   fs_release(p->cwdh, p->cwdgen);
   p->cwdh = h;
   p->cwdgen = gen;
+  p->cwdstale = 0;
   return 0;
 }
 
