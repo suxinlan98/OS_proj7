@@ -79,6 +79,17 @@ python3 "$ROOT_DIR/tests/runner/run_qemu_case.py" \
   --expect "fsfault: xfer direction hook armed: OK" \
   --expect "fsfault: invalid xfer directions rejected without copying: OK" \
   --expect "fsfault: legal xfer resumes after rejection: OK" \
+  --expect "fsfault: xfer range round 1 armed: OK" \
+  --expect "fsfault: xfer range inside grant and both directions work: OK" \
+  --expect "fsfault: xfer range round 2 armed: OK" \
+  --expect "fsfault: xfer range out-of-grant and caddr overflow rejected: OK" \
+  --expect "fsfault: xfer range round 3 armed: OK" \
+  --expect "fsfault: wrapping grant safely rejected: OK" \
+  --expect "fsfault: xfer range round 4 armed: OK" \
+  --expect "fsfault: xfer invalid and wide lengths rejected: OK" \
+  --expect "fsfault: xfer range round 5 armed: OK" \
+  --expect "fsfault: server buffer bounds enforced: OK" \
+  --expect "fsfault: zero-length read leaves grant untouched: OK" \
   --expect "FSFAULT_DONE" \
   --expect "FAULT_PATH_DONE" \
   --reject ": FAIL" \

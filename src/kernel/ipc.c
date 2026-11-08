@@ -240,22 +240,27 @@ uint64
 sys_svc_xfer(void)
 {
   int id, n;
-  uint64 dir, caddr, buf;
+  uint64 dir, caddr, buf, n64;
   struct svc *s;
   struct proc *p = myproc(), *c;
   char tmp[256];
   int gkernel;
-  uint64 gaddr, glen;
+  uint64 gaddr, glen, off;
 
   argint(0, &id);
   argaddr(1, &dir);
   argaddr(2, &caddr);
   argaddr(3, &buf);
-  argint(4, &n);
+  argaddr(4, &n64);
   // Directions are a closed set: anything else must not touch any buffer.
   if(dir != XFER_TO_CLIENT && dir != XFER_FROM_CLIENT)
     return -1;
-  if(id <= 0 || id >= NSVC || n < 0)
+  // Length is a 32-bit signed protocol field.  Reject any value that
+  // would not survive the cast, including sign-extended negatives.
+  if(n64 > 0x7fffffffULL)
+    return -1;
+  n = (int)n64;
+  if(id <= 0 || id >= NSVC)
     return -1;
   s = &svc[id];
   acquire(&s->lock);
@@ -269,7 +274,15 @@ sys_svc_xfer(void)
   gkernel = s->gkernel;
   release(&s->lock);
 
-  if(caddr < gaddr || caddr + n < caddr || caddr + n > gaddr + glen)
+  // A wrapping grant has no representable end; reject it before any
+  // subtraction-based containment test.
+  if(glen > ~0ULL - gaddr)
+    return -1;
+  // [caddr, caddr+n) must lie inside [gaddr, gaddr+glen).
+  if(caddr < gaddr)
+    return -1;
+  off = caddr - gaddr;
+  if(off > glen || (uint64)n > glen - off)
     return -1;
   while(n > 0){
     int m = n > (int)sizeof(tmp) ? (int)sizeof(tmp) : n;

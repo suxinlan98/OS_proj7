@@ -360,6 +360,66 @@ main(int argc, char *argv[])
       close(xfd);
     }
   }
+
+  // --- 7. svc_xfer length and grant bounds --------------------------
+  // The grant occupies the middle 8 bytes of xg; the first and last bytes
+  // are guards that no probe may touch.
+  {
+    char xg[10];
+    char *xb = xg + 1;
+    int xfd, xt, xn;
+
+    xfd = open("/xferlegal", O_RDONLY);
+    if(xfd < 0){
+      check(0, "open for xfer range test");
+    } else {
+      memset(xg, 'Q', sizeof(xg));
+      check(mount("__xferrange__", "/", 1) == 0,
+            "xfer range round 1 armed");
+      xn = read(xfd, xb, 8);
+      check(xn == 0 && memcmp(xb, "ABCDEFAB", 8) == 0 &&
+            xg[0] == 'Q' && xg[9] == 'Q',
+            "xfer range inside grant and both directions work");
+
+      memset(xg, 'Z', sizeof(xg));
+      check(mount("__xferrange__", "/", 2) == 0,
+            "xfer range round 2 armed");
+      xn = read(xfd, xb, 8);
+      check(xn == 0 && memcmp(xg, "ZZZZZZZZZZ", 10) == 0,
+            "xfer range out-of-grant and caddr overflow rejected");
+
+      check(mount("__xferrange__", "/", 3) == 0,
+            "xfer range round 3 armed");
+      xn = read(xfd, (char *)0xFFFFFFFFFFFFFFFCULL, 8);
+      check(xn == 0, "wrapping grant safely rejected");
+
+      memset(xg, 'Z', sizeof(xg));
+      check(mount("__xferrange__", "/", 4) == 0,
+            "xfer range round 4 armed");
+      xn = read(xfd, xb, 8);
+      check(xn == 0 && memcmp(xg, "ZZZZZZZZZZ", 10) == 0,
+            "xfer invalid and wide lengths rejected");
+
+      memset(xg, 'Z', sizeof(xg));
+      check(mount("__xferrange__", "/", 5) == 0,
+            "xfer range round 5 armed");
+      xn = read(xfd, xb, 8);
+      check(xn == 0 && memcmp(xg, "ZZZZZZZZZZ", 10) == 0,
+            "server buffer bounds enforced");
+
+      xt = open("/xferlegal", O_RDONLY);
+      if(xt < 0){
+        check(0, "reopen for zero-length read");
+      } else {
+        memset(xg, 'Z', sizeof(xg));
+        xn = read(xt, xb, 0);
+        check(xn == 0 && memcmp(xg, "ZZZZZZZZZZ", 10) == 0,
+              "zero-length read leaves grant untouched");
+        close(xt);
+      }
+      close(xfd);
+    }
+  }
 #endif
 
   if(failed){
