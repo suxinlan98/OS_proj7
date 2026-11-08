@@ -90,6 +90,14 @@ python3 "$ROOT_DIR/tests/runner/run_qemu_case.py" \
   --expect "fsfault: xfer range round 5 armed: OK" \
   --expect "fsfault: server buffer bounds enforced: OK" \
   --expect "fsfault: zero-length read leaves grant untouched: OK" \
+  --expect "fsfault: genrace open restarted the server: OK" \
+  --expect "fsfault: genrace open handle stays usable after the restart: OK" \
+  --expect "fsfault: genrace chdir restarted the server: OK" \
+  --expect "fsfault: genrace relative open survives the restart during chdir: OK" \
+  --expect "fsfault: genrace fork child inherits a valid cwd after the restart: OK" \
+  --expect "fsfault: genrace exec restarted the server: OK" \
+  --expect "fsfault: genrace exec survives the restart during open: OK" \
+  --expect-count "fsfault: " 87 \
   --expect "FSFAULT_DONE" \
   --expect "FAULT_PATH_DONE" \
   --reject ": FAIL" \

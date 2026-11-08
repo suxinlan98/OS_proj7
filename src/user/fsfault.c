@@ -119,6 +119,9 @@ main(int argc, char *argv[])
   rspid = svc_pid(SVC_FS);
   check(svc_restart(-2) == 0, "test hook armed");
   kill(rspid);
+  // Let init print its own death notice before this process prints: the
+  // console is per-character, so concurrent lines can interleave.
+  pause(10);
   for(i = 0; i < 500 && svc_pid(SVC_FS) != 0; i++)
     pause(1);
   check(svc_pid(SVC_FS) == 0, "service stays down while init is held");
@@ -419,6 +422,87 @@ main(int argc, char *argv[])
       }
       close(xfd);
     }
+  }
+
+  // --- 8. generation sampling race ----------------------------------
+  // Arm the kernel hook so that this process's next file system IPC
+  // restarts the server before the request is admitted.  The handle that
+  // request creates must carry the generation of the server that actually
+  // served it.  The armed requests are absolute paths so they never depend
+  // on the caller's cwd.  check()/printf/svc_* do not send IPC, so the
+  // request right after svc_restart(-3) is the intended one.
+  {
+    int gspid, gnpid, garm, gfd, gch, gcp, gwpid, gst;
+
+    mkdir("/gdir");
+    write_file("/gdir/keep", "genrace-data");
+
+    // open: the returned handle must belong to the restarted server.
+    gspid = svc_pid(SVC_FS);
+    garm = gspid > 0 && svc_restart(-3) == 0;
+    gfd = open("/xferlegal", O_RDONLY);
+    gnpid = svc_pid(SVC_FS);
+    check(garm && gfd >= 0 && gnpid > 0 && gnpid != gspid &&
+          svc_restart(-4) == 2,
+          "genrace open restarted the server");
+    check(gfd >= 0 && read(gfd, buf, 4) == 4 && memcmp(buf, "abcd", 4) == 0,
+          "genrace open handle stays usable after the restart");
+    if(gfd >= 0)
+      close(gfd);
+
+    // chdir: the new cwd handle must be bound to the restarted server.
+    gspid = svc_pid(SVC_FS);
+    garm = gspid > 0 && svc_restart(-3) == 0;
+    gch = chdir("/gdir");
+    gnpid = svc_pid(SVC_FS);
+    check(garm && gch == 0 && gnpid > 0 && gnpid != gspid &&
+          svc_restart(-4) == 2,
+          "genrace chdir restarted the server");
+    check(file_is("keep", "genrace-data"),
+          "genrace relative open survives the restart during chdir");
+
+    // fork: the child's duplicated cwd must carry the new generation.
+    gcp = fork();
+    if(gcp == 0){
+      int cfd = open("keep", O_RDONLY);
+      int ok = 0;
+      if(cfd >= 0){
+        char cb[16];
+        int cn = read(cfd, cb, sizeof(cb) - 1);
+        close(cfd);
+        if(cn > 0){
+          cb[cn] = 0;
+          ok = strcmp(cb, "genrace-data") == 0;
+        }
+      }
+      exit(ok ? 0 : 1);
+    }
+    gst = -1;
+    gwpid = wait(&gst);
+    check(gcp > 0 && gwpid == gcp && gst == 0,
+          "genrace fork child inherits a valid cwd after the restart");
+
+    // Restore an absolute cwd for the exec test: on the unfixed kernel the
+    // parent cwd above is left with the stale generation.
+    chdir("/");
+
+    // exec: the source handle must belong to the restarted server.
+    gspid = svc_pid(SVC_FS);
+    gcp = fork();
+    if(gcp == 0){
+      char *gav[] = { "/hello", 0 };
+      if(svc_restart(-3) != 0)
+        exit(44);
+      exec("/hello", gav);
+      exit(42);
+    }
+    gst = -1;
+    gwpid = wait(&gst);
+    gnpid = svc_pid(SVC_FS);
+    check(gcp > 0 && gwpid == gcp && gnpid > 0 && gnpid != gspid &&
+          svc_restart(-4) == 2,
+          "genrace exec restarted the server");
+    check(gst == 0, "genrace exec survives the restart during open");
   }
 #endif
 
